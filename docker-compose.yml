@@ -1,0 +1,36 @@
+version: '3'
+services:
+  airflow:
+    build: "./airflow/"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - LOAD_EX=n
+      - FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - EXECUTOR=Local
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    volumes:
+      - ~/airflowConfig:/usr/local/airflow/config
+      - ./airflow/src/dags:/usr/local/airflow/dags
+      - ./airflow/src/etlConfig:/usr/local/airflow/etlConfig
+      - ./airflow/src/airflowPython:/usr/local/airflow/airflowPython
+      - ./airflow/src/templates:/usr/local/airflow/templates
+      - ./airflow/src/plugins:/usr/local/airflow/plugins
+      - /efs/infa_shared/git/the-grid:/usr/local/airflow/git/the-grid
+      - /etc/krb5.conf:/etc/krb5.conf
+      - /etc/hosts:/etc/hosts
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgresVolume:/var/lib/postgresql/data/pgdata
+volumes:
+  postgresVolume:

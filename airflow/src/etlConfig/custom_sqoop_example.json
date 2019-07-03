@@ -1,0 +1,97 @@
+{
+    "dagId": "sqoop_example",
+    "description": "Dim load for some table",
+    "schedule": "0 0 * * *",
+    "startDate": "2019-03-20",
+    "dateFormat": "%Y-%m-%d",
+    "numberOfRetries": 0,
+    "catchup": false,
+    "emails": [
+        "sample@email.com"
+    ],
+    "steps": [
+        {
+            "stepId": "load_trx_to_raw",
+            "type": "extract_and_load",
+            "description": "read from source to raw",
+            "source": {
+                "connType": "mssql",
+                "connId": "mssql_default",
+                "collection": "SHEMA_NAME",
+                "entity": "table_name",
+                "columns": "AccountID,CompanyID,AccountKind",
+                "columnTransormation": "LastUpdate=String"
+            },
+            "target": {
+                "connType": "hdfs",
+                "path": "/raw/data/",
+                "fileType": "parquetfile",
+                "datasetName": "sqoop_dim_example"
+            },
+            "runtime": {
+                "task": "sqoop",
+                "connId": "sqoop_ssh_remote_client"
+            }
+        },
+        {
+            "stepId" : "load_trx_to_stg",
+            "type" : "truncate_and_load_from_hdfs",
+            "description" : "read from hdfs to staging",
+            "source" : {
+                "connType" : "hdfs",
+                "path": "/raw/data/",
+                "fileType": "parquetfile",
+                "datasetName": "sqoop_dim_example"
+            },
+            "target" : {
+                "connType" : "vertica",
+                "collection" : "SHEMA_NAME",
+                "entity" : "table_name"
+            },
+            "mapping" : {
+                "auto" : false,
+                "columnMappings" : [
+                    {
+                      "targetField": "account_id",
+                      "sourceField": "AccountID"
+                    },
+                    {
+                      "targetField": "company_id",
+                      "sourceField": "CompanyID"
+                    },
+                    {
+                      "targetField": "account_kind",
+                      "sourceField": "AccountKind"
+                    }
+                ]
+            },
+            "runtime": {
+                "task": "vertica",
+                "connId": "vertica_dev"
+            },
+            "runAfter": ["load_trx_to_raw"]
+        },
+        {
+            "stepId": "scd2_from_stg_to_ods",
+            "type": "scd2_load",
+            "description": "read from a staging to ods using scd2 logic",
+            "source": {
+                "collection": "SCHEMA_NAME",
+                "entity": "table_name",
+                "columns": "account_id,company_id,account_kind",
+                "hashPrefix": "table_context_name"
+            },
+            "target": {
+                "collection": "SCHEMA_NAME",
+                "entity": "table_name",
+                "columns": "account_id,company_id,account_kind",
+                "hashPrefix": "table_context_name"
+            },
+            "runtime": {
+                "task": "vertica",
+                "connId": "vertica_dev"
+            },
+            "runAfter": ["load_trx_to_stg"]
+        }
+    ]
+}

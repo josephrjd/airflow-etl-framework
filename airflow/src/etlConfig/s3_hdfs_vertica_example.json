@@ -1,0 +1,85 @@
+{
+    "dagId": "hourly_load_example",
+    "description": "All hourly loads at the 15th min",
+    "schedule": "15 */1 * * *",
+    "startDate": "2019-06-12 22:00",
+    "dateFormat": "%Y-%m-%d %H:%M",
+    "dependsOnPast": false,
+    "numberOfRetries": 1,
+    "catchup": true,
+    "maxActiveDagRuns": 1,
+    "emails": [
+        "sample@email.com"
+    ],
+    "steps": [
+        {
+            "stepId": "load_s3_to_hdfs",
+            "type": "copy_from_s3_to_hdfs_without_keys",
+            "description": "read from source to raw",
+            "jinjaInTaskParam": true,
+            "source": {
+                "connType": "s3",
+                "connId": "",
+                "collection": "s3://some_bucket",
+                "entity": "/some_directory/{{ next_execution_date.strftime(\"%Y-%m-%d_%H\") }}",
+                "fileRegex": "{{ next_execution_date.strftime(\"%Y-%m-%d_%H\") }}.json",
+                "columns": ""
+            },
+            "target": {
+                "connType": "hdfs",
+                "path": "/raw/data/{{ params.step.target.datasetName }}/part={{ next_execution_date.strftime(\"%Y%m%d_%H\") }}",
+                "fileType": "json",
+                "datasetName": "some_dataset_name"
+            },
+            "runtime": {
+                "task": "shell_script",
+                "connId": "ssh_infa_prod"
+            }
+        },
+        {
+            "stepId": "load_hdfs_to_flex",
+            "type": "tuncate_and_load_raw_to_flex",
+            "description": "Load data to vertica flex table from raw",
+            "jinjaInTaskParam": true,
+            "source": {
+                "connType": "hdfs",
+                "path": "/raw/data/{{ params.step.source.datasetName }}/part={{ next_execution_date.strftime(\"%Y%m%d_%H\") }}",
+                "fileRegex": "{{ next_execution_date.strftime(\"%Y-%m-%d_%H\") }}_member000.json",
+                "fileType": "json",
+                "datasetName": "some_dataset_name"
+            },
+            "target": {
+                "collection": "SCHEMA_NAME",
+                "entity": "table_name",
+                "columns": "__raw__"
+            },
+            "runtime": {
+                "task": "vertica",
+                "connId": "vertica_dev"
+            },
+            "runAfter": ["load_s3_to_hdfs"]
+        },
+        {
+            "stepId": "scd2_load",
+            "type": "scd2_load",
+            "description": "Load incremental data for dim",
+            "source": {
+                "collection": "SCHEMA_NAME",
+                "entity": "table_name",
+                "columns": "id, created_ts, updated_ts, salutation",
+                "hashPrefix": "table_context_name"
+            },
+            "target": {
+                "collection": "SCHEMA_NAME",
+                "entity": "table_name",
+                "columns": "id, created_ts, updated_ts, salutation",
+                "hashPrefix": "table_context_name"
+            },
+            "runtime": {
+                "task": "vertica",
+                "connId": "vertica_dev"
+            },
+            "runAfter": ["load_hdfs_to_flex"]
+        }
+    ]
+}

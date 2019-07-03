@@ -1,0 +1,5 @@
+# without this dependency airflow fails
+kubernetes
+pyodbc
+vertica_python
+cryptography
