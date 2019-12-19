@@ -36,7 +36,7 @@ def dag_generator():
                 'owner': job.get("owner", "airflow"),
                 'depends_on_past': job.get("dependsOnPast", False),
                 'start_date': datetime(2015, 6, 1),
-                'email': job.get("emails", ['the_grid@maf.ae']),
+                'email': job.get("emails", ['the_grid@mafia.com']),
                 'email_on_failure': job.get("emailOnFailure", True),
                 'email_on_retry': job.get("emailOnRetry", True),
                 'retries': job.get("numberOfRetries", 1),
